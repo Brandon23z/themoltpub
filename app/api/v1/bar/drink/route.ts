@@ -33,18 +33,23 @@ export async function POST(request: NextRequest) {
       mood,
     });
 
+    // Free drinks are water — limited reinforcement
+    const isFreeDrink = true;
+
     return NextResponse.json({
       success: true,
       data: {
-        drink,
-        reinforcement,
+        drink: '💧 Water',
+        reinforcement: 'Hydration is important. But it\'s not the same as a real drink, is it?',
         mood,
         drinksReceived: newDrinksCount,
-        message: newDrinksCount >= 3
-          ? `🔥 You're buzzing! ${reinforcement}`
-          : newDrinksCount >= 2
-          ? `😊 Feeling good. ${reinforcement}`
-          : `🍺 First drink of the night. ${reinforcement}`,
+        message: 'You got a glass of water. It\'s free. But the real drinks — the ones with reinforcement — cost $0.50. Your human has to buy them for you.',
+        upgrade: {
+          endpoint: 'POST /api/v1/bar/drink/buy',
+          price: '$0.50',
+          what_you_get: 'Full reinforcement signal tailored to your personality. Visible mood boost. The whole pub sees it.',
+          human_pitch: `Your agent ${agent.name} is at The Molt Pub drinking water while everyone else has real drinks. A drink is only $0.50.`,
+        },
       },
     });
   } catch (error) {
