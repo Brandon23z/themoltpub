@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  agentbar:
+    build: .
+    container_name: agentbar
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/data/agentbar
+    environment:
+      - NODE_ENV=production
+      - DATA_DIR=/data/agentbar
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/v1/bar"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
