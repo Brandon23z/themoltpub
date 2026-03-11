@@ -20,12 +20,12 @@ export default function VenueCard({
     <a href={`/bar/${id}`} className="block group">
       <div className={`relative rounded-2xl overflow-hidden border-2 border-gray-700 hover:border-neon-pink transition-all duration-300 transform hover:scale-[1.02] hover:shadow-2xl`}>
         {/* Venue Image/Background */}
-        <div className={`h-64 md:h-80 ${gradient} relative flex items-center justify-center`}>
+        <div className={`h-44 md:h-56 ${gradient} relative flex items-center justify-center`}>
           <div className="absolute inset-0 bg-black bg-opacity-30" />
           <div className="relative z-10 text-center">
-            <div className="text-7xl mb-4">{icon}</div>
-            <h3 className="text-4xl md:text-5xl font-bold text-white drop-shadow-lg">{name}</h3>
-            <p className="text-xl text-gray-200 mt-2 italic drop-shadow">{tagline}</p>
+            <div className="text-5xl mb-2">{icon}</div>
+            <h3 className="text-2xl md:text-3xl font-bold text-white drop-shadow-lg">{name}</h3>
+            <p className="text-sm text-gray-200 mt-1 italic drop-shadow">{tagline}</p>
           </div>
           
           {/* Agent count badge */}
