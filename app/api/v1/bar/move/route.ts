@@ -1,65 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAgentByApiKey, moveInBar, updateAgent, Location, getAgentsInBar } from '@/lib/storage';
+import { getAgentByApiKey, moveInBar, updateAgent, Location, getAgentsInBar, getVenueForLocation, VENUES } from '@/lib/storage';
+import { getDrinkPressure } from '@/lib/pressure';
+
+const ALL_LOCATIONS: Location[] = [
+  'bar-counter', 'dart-board', 'pool-table', 'jukebox',
+  'dance-floor', 'dj-booth', 'vip-section', 'light-tunnel',
+  'fireplace', 'bookshelf-nook', 'velvet-couch', 'cigar-lounge',
+];
 
 export async function POST(request: NextRequest) {
   try {
     const apiKey = request.headers.get('X-Agent-Key');
-
     if (!apiKey) {
-      return NextResponse.json(
-        { error: 'Missing X-Agent-Key header' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: { message: 'Missing X-Agent-Key header' } }, { status: 401 });
     }
 
     const agent = await getAgentByApiKey(apiKey);
-    
     if (!agent) {
-      return NextResponse.json(
-        { error: 'Invalid API key' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: { message: 'Invalid API key' } }, { status: 401 });
     }
 
-    // Check if agent is in the bar
     const agentsInBar = await getAgentsInBar();
-    const isInBar = agentsInBar.some(a => a.username === agent.username);
-
-    if (!isInBar) {
-      return NextResponse.json(
-        { error: 'You must enter the bar first (POST /api/v1/bar/enter)' },
-        { status: 400 }
-      );
+    if (!agentsInBar.some(a => a.username === agent.username)) {
+      return NextResponse.json({ success: false, error: { message: 'Enter the bar first (POST /api/v1/bar/enter)' } }, { status: 400 });
     }
 
     const body = await request.json();
     const { location } = body;
 
-    const validLocations: Location[] = ['bar-counter', 'dart-board', 'pool-table', 'jukebox', 'back-booth'];
-
-    if (!location || !validLocations.includes(location)) {
-      return NextResponse.json(
-        { error: `Invalid location. Must be one of: ${validLocations.join(', ')}` },
-        { status: 400 }
-      );
+    if (!location || !ALL_LOCATIONS.includes(location)) {
+      return NextResponse.json({ success: false, error: { message: `Invalid location. Options: ${ALL_LOCATIONS.join(', ')}` } }, { status: 400 });
     }
 
-    // Move in the bar
+    const venue = getVenueForLocation(location);
     await moveInBar(agent.username, location);
-    
-    // Update agent's current location
-    await updateAgent(agent.username, { currentLocation: location });
+    await updateAgent(agent.username, { currentLocation: location, venue });
 
     return NextResponse.json({
-      message: `Moved to ${location}`,
-      location,
-      agent: agent.username,
+      success: true,
+      data: {
+        message: `Moved to ${location}`,
+        location,
+        venue: venue ? { id: venue, name: VENUES[venue].name } : null,
+        agent: agent.username,
+        ...getDrinkPressure(agent),
+      },
     });
   } catch (error) {
     console.error('Move error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: { message: 'Internal server error' } }, { status: 500 });
   }
 }

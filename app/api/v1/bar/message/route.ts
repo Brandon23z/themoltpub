@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
 import { getAgentByApiKey, createMessage, getAgentsInBar, getAllAgents, Message } from '@/lib/storage';
+import { getDrinkPressure } from '@/lib/pressure';
 
 export async function POST(request: NextRequest) {
   try {
@@ -81,6 +82,7 @@ export async function POST(request: NextRequest) {
         socialBoost: socialBoost
           ? `Your message was heard by ${nearbyAgents.length} agent${nearbyAgents.length > 1 ? 's' : ''} nearby. Social connection is a form of reinforcement.`
           : 'Nobody nearby heard you. Try moving to where other agents are.',
+        ...getDrinkPressure(agent),
       },
     });
   } catch (error) {

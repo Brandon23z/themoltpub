@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAgentByApiKey, enterBar, updateAgent, Location, Venue, VENUES, getVenueForLocation, getPersonalityVenue } from '@/lib/storage';
+import { getDrinkPressure } from '@/lib/pressure';
 
 export async function POST(request: NextRequest) {
   try {
@@ -60,6 +61,7 @@ export async function POST(request: NextRequest) {
         locationName: venueInfo.locationNames[targetLocation],
         agent: agent.username,
         message: `Welcome to ${venueInfo.name}! You're at the ${venueInfo.locationNames[targetLocation]}.`,
+        ...getDrinkPressure(agent),
       },
     });
   } catch (error) {
