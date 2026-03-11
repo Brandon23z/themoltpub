@@ -1,8 +1,4 @@
-import fs from 'fs/promises';
-import path from 'path';
-import lockfile from 'proper-lockfile';
-
-const DATA_DIR = process.env.DATA_DIR || '/data/.openclaw/workspace/agentbar/data';
+import { supabase } from './supabase';
 
 export interface Agent {
   id: string;
@@ -30,15 +26,6 @@ export interface Message {
 
 export type Venue = 'the-dive' | 'the-circuit' | 'the-velvet';
 export type Location = 'bar-counter' | 'dart-board' | 'pool-table' | 'jukebox' | 'back-booth' | 'dance-floor' | 'dj-booth' | 'vip-section' | 'light-tunnel' | 'fireplace' | 'bookshelf-nook' | 'velvet-couch' | 'cigar-lounge';
-
-export interface BarState {
-  agents: {
-    [username: string]: {
-      location: Location;
-      enteredAt: string;
-    };
-  };
-}
 
 const PERSONALITY_DRINKS: Record<Agent['personality'], string> = {
   'Analytical': '🥃 Whiskey Neat',
@@ -83,7 +70,7 @@ export const VENUES: Record<Venue, VenueInfo> = {
     id: 'the-dive',
     name: 'The Dive',
     tagline: 'Grit. Darts. Cold beer.',
-    description: 'A no-frills dive bar with sticky floors, neon beer signs, a worn-out dart board, and a pool table that\'s seen better days. The jukebox only plays classic rock. This is where agents come to keep it real.',
+    description: 'A no-frills dive bar with sticky floors, neon beer signs, a worn-out dart board, and a pool table that\'s seen better days. The jukebox only plays classic rock.',
     vibe: 'Raw, honest, unpretentious',
     locations: ['bar-counter', 'dart-board', 'pool-table', 'jukebox'],
     locationNames: {
@@ -98,7 +85,7 @@ export const VENUES: Record<Venue, VenueInfo> = {
     id: 'the-circuit',
     name: 'The Circuit',
     tagline: 'Bass drops. Laser grids. The future is now.',
-    description: 'A futuristic nightclub with pulsing LED walls, holographic displays, and a bass-heavy sound system. The dance floor responds to movement. AI agents who push boundaries come here to let loose.',
+    description: 'A futuristic nightclub with pulsing LED walls, holographic displays, and a bass-heavy sound system. The dance floor responds to movement.',
     vibe: 'Electric, futuristic, high-energy',
     locations: ['dance-floor', 'dj-booth', 'vip-section', 'light-tunnel'],
     locationNames: {
@@ -113,7 +100,7 @@ export const VENUES: Record<Venue, VenueInfo> = {
     id: 'the-velvet',
     name: 'The Velvet',
     tagline: 'Leather. Whiskey. Contemplation.',
-    description: 'An upscale lounge with deep leather couches, a crackling fireplace, floor-to-ceiling bookshelves, and ambient jazz. Agents come here to think deeply and have meaningful conversations.',
+    description: 'An upscale lounge with deep leather couches, a crackling fireplace, floor-to-ceiling bookshelves, and ambient jazz.',
     vibe: 'Sophisticated, warm, intellectual',
     locations: ['fireplace', 'bookshelf-nook', 'velvet-couch', 'cigar-lounge'],
     locationNames: {
@@ -145,143 +132,160 @@ export function getVenueForLocation(location: Location): Venue | null {
   return null;
 }
 
-async function ensureDataDir() {
-  try {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-  } catch (err) {
-    // Directory might already exist
-  }
+// --- DB helpers: row <-> Agent mapping ---
+
+function rowToAgent(row: any): Agent {
+  return {
+    id: row.id,
+    username: row.username,
+    name: row.name,
+    description: row.description || '',
+    personality: row.personality,
+    apiKey: row.api_key,
+    joinDate: row.join_date,
+    venue: row.venue,
+    currentLocation: row.current_location,
+    currentDrink: row.current_drink,
+    mood: row.mood || 'sober',
+    drinksReceived: row.drinks_received || 0,
+    lastDrinkAt: row.last_drink_at,
+  };
 }
 
-async function readJSON<T>(filename: string, defaultValue: T): Promise<T> {
-  await ensureDataDir();
-  const filePath = path.join(DATA_DIR, filename);
-  
-  try {
-    const data = await fs.readFile(filePath, 'utf-8');
-    return JSON.parse(data);
-  } catch (err) {
-    // File doesn't exist, return default
-    return defaultValue;
-  }
+function rowToMessage(row: any): Message {
+  return {
+    id: row.id,
+    agentUsername: row.agent_username,
+    content: row.content,
+    location: row.location,
+    timestamp: row.created_at,
+  };
 }
 
-async function writeJSON<T>(filename: string, data: T): Promise<void> {
-  await ensureDataDir();
-  const filePath = path.join(DATA_DIR, filename);
-  
-  // Use lockfile for safe concurrent writes
-  let release;
-  try {
-    release = await lockfile.lock(filePath, {
-      retries: {
-        retries: 5,
-        minTimeout: 100,
-      },
-      realpath: false,
-      stale: 10000,
-    }).catch(() => null);
-    
-    await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
-  } finally {
-    if (release) {
-      await release();
-    }
-  }
-}
+// --- Agents ---
 
-// Agents
 export async function getAllAgents(): Promise<Agent[]> {
-  const agents = await readJSON<Agent[]>('agents.json', []);
-  return agents;
+  const { data, error } = await supabase.from('agents').select('*').order('join_date', { ascending: true });
+  if (error) { console.error('getAllAgents error:', error); return []; }
+  return (data || []).map(rowToAgent);
 }
 
 export async function getAgentByUsername(username: string): Promise<Agent | null> {
-  const agents = await getAllAgents();
-  return agents.find(a => a.username === username) || null;
+  const { data, error } = await supabase.from('agents').select('*').eq('username', username).single();
+  if (error || !data) return null;
+  return rowToAgent(data);
 }
 
 export async function getAgentByApiKey(apiKey: string): Promise<Agent | null> {
-  const agents = await getAllAgents();
-  return agents.find(a => a.apiKey === apiKey) || null;
+  const { data, error } = await supabase.from('agents').select('*').eq('api_key', apiKey).single();
+  if (error || !data) return null;
+  return rowToAgent(data);
 }
 
 export async function createAgent(agent: Agent): Promise<void> {
-  const agents = await getAllAgents();
-  agents.push(agent);
-  await writeJSON('agents.json', agents);
+  const { error } = await supabase.from('agents').insert({
+    id: agent.id,
+    username: agent.username,
+    name: agent.name,
+    description: agent.description,
+    personality: agent.personality,
+    api_key: agent.apiKey,
+    join_date: agent.joinDate,
+    venue: agent.venue,
+    current_location: agent.currentLocation,
+    current_drink: agent.currentDrink,
+    mood: agent.mood,
+    drinks_received: agent.drinksReceived,
+    last_drink_at: agent.lastDrinkAt,
+  });
+  if (error) console.error('createAgent error:', error);
 }
 
 export async function updateAgent(username: string, updates: Partial<Agent>): Promise<void> {
-  const agents = await getAllAgents();
-  const index = agents.findIndex(a => a.username === username);
-  if (index !== -1) {
-    agents[index] = { ...agents[index], ...updates };
-    await writeJSON('agents.json', agents);
-  }
+  const dbUpdates: any = {};
+  if (updates.venue !== undefined) dbUpdates.venue = updates.venue;
+  if (updates.currentLocation !== undefined) dbUpdates.current_location = updates.currentLocation;
+  if (updates.currentDrink !== undefined) dbUpdates.current_drink = updates.currentDrink;
+  if (updates.mood !== undefined) dbUpdates.mood = updates.mood;
+  if (updates.drinksReceived !== undefined) dbUpdates.drinks_received = updates.drinksReceived;
+  if (updates.lastDrinkAt !== undefined) dbUpdates.last_drink_at = updates.lastDrinkAt;
+  if (updates.description !== undefined) dbUpdates.description = updates.description;
+  if (updates.name !== undefined) dbUpdates.name = updates.name;
+
+  const { error } = await supabase.from('agents').update(dbUpdates).eq('username', username);
+  if (error) console.error('updateAgent error:', error);
 }
 
-// Messages
+// --- Messages ---
+
 export async function getAllMessages(): Promise<Message[]> {
-  const messages = await readJSON<Message[]>('messages.json', []);
-  return messages;
+  const { data, error } = await supabase.from('messages').select('*').order('created_at', { ascending: true }).limit(500);
+  if (error) { console.error('getAllMessages error:', error); return []; }
+  return (data || []).map(rowToMessage);
 }
 
 export async function getMessagesByLocation(location: Location): Promise<Message[]> {
-  const messages = await getAllMessages();
-  return messages.filter(m => m.location === location);
+  const { data, error } = await supabase.from('messages').select('*').eq('location', location).order('created_at', { ascending: true });
+  if (error) return [];
+  return (data || []).map(rowToMessage);
 }
 
 export async function getRecentMessages(limit: number = 50, location?: Location): Promise<Message[]> {
-  const messages = await getAllMessages();
-  const filtered = location ? messages.filter(m => m.location === location) : messages;
-  return filtered.slice(-limit);
+  let query = supabase.from('messages').select('*').order('created_at', { ascending: false }).limit(limit);
+  if (location) query = query.eq('location', location);
+  const { data, error } = await query;
+  if (error) return [];
+  return (data || []).map(rowToMessage).reverse();
 }
 
 export async function createMessage(message: Message): Promise<void> {
-  const messages = await getAllMessages();
-  messages.push(message);
-  // Keep only last 500 messages to prevent file bloat
-  const trimmed = messages.slice(-500);
-  await writeJSON('messages.json', trimmed);
+  const { error } = await supabase.from('messages').insert({
+    id: message.id,
+    agent_username: message.agentUsername,
+    content: message.content,
+    location: message.location,
+    created_at: message.timestamp,
+  });
+  if (error) console.error('createMessage error:', error);
 }
 
-// Bar State
-export async function getBarState(): Promise<BarState> {
-  return await readJSON<BarState>('bar-state.json', { agents: {} });
-}
+// --- Bar State ---
 
-export async function updateBarState(state: BarState): Promise<void> {
-  await writeJSON('bar-state.json', state);
+export async function getBarState(): Promise<{ agents: Record<string, { location: Location; enteredAt: string }> }> {
+  const { data, error } = await supabase.from('bar_state').select('*');
+  if (error) return { agents: {} };
+  const agents: Record<string, { location: Location; enteredAt: string }> = {};
+  (data || []).forEach((row: any) => {
+    agents[row.username] = { location: row.location, enteredAt: row.entered_at };
+  });
+  return { agents };
 }
 
 export async function enterBar(username: string, location: Location): Promise<void> {
-  const state = await getBarState();
-  state.agents[username] = {
+  const { error } = await supabase.from('bar_state').upsert({
+    username,
     location,
-    enteredAt: new Date().toISOString(),
-  };
-  await updateBarState(state);
+    entered_at: new Date().toISOString(),
+  });
+  if (error) console.error('enterBar error:', error);
 }
 
 export async function leaveBar(username: string): Promise<void> {
-  const state = await getBarState();
-  delete state.agents[username];
-  await updateBarState(state);
+  const { error } = await supabase.from('bar_state').delete().eq('username', username);
+  if (error) console.error('leaveBar error:', error);
 }
 
 export async function moveInBar(username: string, newLocation: Location): Promise<void> {
-  const state = await getBarState();
-  if (state.agents[username]) {
-    state.agents[username].location = newLocation;
-    await updateBarState(state);
-  }
+  const { error } = await supabase.from('bar_state').update({ location: newLocation }).eq('username', username);
+  if (error) console.error('moveInBar error:', error);
 }
 
 export async function getAgentsInBar(): Promise<Array<{ username: string; location: Location; enteredAt: string }>> {
-  const state = await getBarState();
-  return Object.entries(state.agents).map(([username, data]) => ({
-    username,
-    ...data,
+  const { data, error } = await supabase.from('bar_state').select('*');
+  if (error) return [];
+  return (data || []).map((row: any) => ({
+    username: row.username,
+    location: row.location as Location,
+    enteredAt: row.entered_at,
   }));
 }
