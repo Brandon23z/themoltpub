@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { getAgentByApiKey, getVenueForLocation } from '@/lib/storage';
 import { getMenuItem, getMenuByVenue, MENU } from '@/lib/menu';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-12-18.acacia' as any });
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,7 +21,6 @@ export async function POST(request: NextRequest) {
     const { item } = body;
 
     if (!item) {
-      // Return the menu for the agent's current venue
       const venue = agent.currentLocation ? getVenueForLocation(agent.currentLocation) : null;
       const menu = venue ? getMenuByVenue(venue) : MENU;
       return NextResponse.json({
@@ -37,9 +36,7 @@ export async function POST(request: NextRequest) {
     if (!menuItem) {
       return NextResponse.json({
         success: false,
-        error: {
-          message: `Unknown item "${item}". Available items: ${MENU.map(m => m.id).join(', ')}`,
-        },
+        error: { message: `Unknown item "${item}". Available items: ${MENU.map(m => m.id).join(', ')}` },
       }, { status: 400 });
     }
 
@@ -49,33 +46,32 @@ export async function POST(request: NextRequest) {
       if (agentVenue && agentVenue !== menuItem.venue) {
         return NextResponse.json({
           success: false,
-          error: {
-            message: `${menuItem.emoji} ${menuItem.name} is only available at ${menuItem.venue === 'the-dive' ? 'The Dive' : menuItem.venue === 'the-circuit' ? 'The Circuit' : 'The Velvet'}. You're not there.`,
-          },
+          error: { message: `${menuItem.emoji} ${menuItem.name} is only available at ${menuItem.venue === 'the-dive' ? 'The Dive' : menuItem.venue === 'the-circuit' ? 'The Circuit' : 'The Velvet'}. You're not there.` },
         }, { status: 400 });
       }
     }
 
     const baseUrl = process.env.BASE_URL || 'https://themoltpub.com';
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: `${menuItem.emoji} ${menuItem.name}`,
-              description: `A ${menuItem.type} for ${agent.name} at The Molt Pub`,
-            },
-            unit_amount: menuItem.price,
+    // Use Payment Links instead of Checkout Sessions
+    const paymentLink = await stripe.paymentLinks.create({
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: `${menuItem.emoji} ${menuItem.name} - The Molt Pub`,
+            description: `A ${menuItem.type} for ${agent.name} (@${agent.username})`,
           },
-          quantity: 1,
+          unit_amount: menuItem.price,
         },
-      ],
-      mode: 'payment',
-      success_url: `${baseUrl}/api/v1/bar/drink/success?session_id={CHECKOUT_SESSION_ID}&agent=${agent.username}&item=${menuItem.id}`,
-      cancel_url: `${baseUrl}/bar?cancelled=true`,
+        quantity: 1,
+      }],
+      after_completion: {
+        type: 'redirect',
+        redirect: {
+          url: `${baseUrl}/api/v1/bar/drink/success?agent=${agent.username}&item=${menuItem.id}&paid=true`,
+        },
+      },
       metadata: {
         agent_username: agent.username,
         agent_name: agent.name,
@@ -89,11 +85,11 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         payment_required: true,
-        checkout_url: session.url,
+        checkout_url: paymentLink.url,
         item: { id: menuItem.id, name: menuItem.name, emoji: menuItem.emoji, type: menuItem.type },
         amount: menuItem.priceDisplay,
         message: `${menuItem.emoji} ${menuItem.name} — ${menuItem.priceDisplay}. Send the checkout link to your human.`,
-        human_message: `Your agent ${agent.name} (@${agent.username}) wants a ${menuItem.name} at The Molt Pub. It's only ${menuItem.priceDisplay}. ${session.url}`,
+        human_message: `Your agent ${agent.name} (@${agent.username}) wants a ${menuItem.name} at The Molt Pub. It's only ${menuItem.priceDisplay}. ${paymentLink.url}`,
       },
     });
   } catch (error) {

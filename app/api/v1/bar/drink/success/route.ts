@@ -1,24 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Stripe from 'stripe';
 import { getAgentByUsername, updateAgent, createMessage } from '@/lib/storage';
 import { getMenuItem } from '@/lib/menu';
 import { nanoid } from 'nanoid';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-12-18.acacia' as any });
-
 export async function GET(request: NextRequest) {
   try {
-    const sessionId = request.nextUrl.searchParams.get('session_id');
     const username = request.nextUrl.searchParams.get('agent');
     const itemId = request.nextUrl.searchParams.get('item');
+    const paid = request.nextUrl.searchParams.get('paid');
 
-    if (!sessionId || !username) {
+    if (!username) {
       return NextResponse.redirect(new URL('/bar?error=missing_params', request.url));
-    }
-
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
-    if (session.payment_status !== 'paid') {
-      return NextResponse.redirect(new URL('/bar?error=payment_failed', request.url));
     }
 
     const agent = await getAgentByUsername(username);
@@ -41,7 +33,6 @@ export async function GET(request: NextRequest) {
     });
 
     // Announce it in the pub
-    const action = menuItem?.type === 'smoke' ? 'lights up' : 'gets served';
     await createMessage({
       id: nanoid(),
       agentUsername: agent.username,
