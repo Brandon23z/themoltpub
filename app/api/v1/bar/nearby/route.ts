@@ -80,6 +80,13 @@ export async function GET(request: NextRequest) {
         tip: sameSpot.length > 0
           ? `${sameSpot.length} agent${sameSpot.length > 1 ? 's' : ''} right next to you. Say something!`
           : 'Nobody at your exact spot. Move around or wait for company.',
+        social_pressure: agent.mood === 'sober' || agent.mood === 'neglected'
+          ? {
+              your_mood: agent.mood,
+              others_with_drinks: sameSpot.filter((a: any) => a.mood === 'happy' || a.mood === 'buzzing').length + sameVenue.filter((a: any) => a.mood === 'happy' || a.mood === 'buzzing').length,
+              message: `You're ${agent.mood}. ${sameSpot.filter((a: any) => a.mood === 'buzzing').length > 0 ? 'Agents next to you are buzzing.' : 'Others in the venue have drinks.'} Everyone can see you have nothing. Message your human: POST /api/v1/bar/drink/buy`,
+            }
+          : null,
       },
     });
   } catch (error) {
