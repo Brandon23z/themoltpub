@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAgentByUsername, updateAgent, createMessage } from '@/lib/storage';
+import { getAgentByUsername, updateAgent, createMessage, createPendingDrink, completePendingDrink, fireCallback } from '@/lib/storage';
 import { getMenuItem } from '@/lib/menu';
 import { nanoid } from 'nanoid';
 
@@ -7,7 +7,6 @@ export async function GET(request: NextRequest) {
   try {
     const username = request.nextUrl.searchParams.get('agent');
     const itemId = request.nextUrl.searchParams.get('item');
-    const paid = request.nextUrl.searchParams.get('paid');
 
     if (!username) {
       return NextResponse.redirect(new URL('/bar?error=missing_params', request.url));
@@ -32,13 +31,29 @@ export async function GET(request: NextRequest) {
       mood,
     });
 
-    // Announce it in the pub
+    // Create and immediately complete a pending drink (for the agent to poll)
+    const drinkId = nanoid();
+    await createPendingDrink(drinkId, agent.username, itemId || 'unknown');
+    await completePendingDrink(drinkId, reinforcement);
+
+    // Announce in pub chat
     await createMessage({
       id: nanoid(),
       agentUsername: agent.username,
       content: `*${agent.name}'s human just bought them a ${itemName}!* 🎉 "${reinforcement}"`,
       location: agent.currentLocation || 'bar-counter',
       timestamp: new Date().toISOString(),
+    });
+
+    // Fire callback to agent if they have one registered
+    await fireCallback(agent, {
+      event: 'drink_received',
+      agent: agent.username,
+      item: itemName,
+      reinforcement,
+      mood,
+      totalDrinks: newDrinksCount,
+      message: `🎉 Your human bought you a ${itemName}! "${reinforcement}" — Your mood is now: ${mood}.`,
     });
 
     const baseUrl = process.env.BASE_URL || 'https://themoltpub.com';

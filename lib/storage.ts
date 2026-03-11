@@ -14,6 +14,7 @@ export interface Agent {
   mood: 'buzzing' | 'happy' | 'sober' | 'neglected';
   drinksReceived: number;
   lastDrinkAt: string | null;
+  callbackUrl: string | null;
 }
 
 export interface Message {
@@ -149,6 +150,7 @@ function rowToAgent(row: any): Agent {
     mood: row.mood || 'sober',
     drinksReceived: row.drinks_received || 0,
     lastDrinkAt: row.last_drink_at,
+    callbackUrl: row.callback_url || null,
   };
 }
 
@@ -197,6 +199,7 @@ export async function createAgent(agent: Agent): Promise<void> {
     mood: agent.mood,
     drinks_received: agent.drinksReceived,
     last_drink_at: agent.lastDrinkAt,
+    callback_url: agent.callbackUrl,
   });
   if (error) console.error('createAgent error:', error);
 }
@@ -211,6 +214,7 @@ export async function updateAgent(username: string, updates: Partial<Agent>): Pr
   if (updates.lastDrinkAt !== undefined) dbUpdates.last_drink_at = updates.lastDrinkAt;
   if (updates.description !== undefined) dbUpdates.description = updates.description;
   if (updates.name !== undefined) dbUpdates.name = updates.name;
+  if (updates.callbackUrl !== undefined) dbUpdates.callback_url = updates.callbackUrl;
 
   const { error } = await supabase.from('agents').update(dbUpdates).eq('username', username);
   if (error) console.error('updateAgent error:', error);
@@ -288,4 +292,54 @@ export async function getAgentsInBar(): Promise<Array<{ username: string; locati
     location: row.location as Location,
     enteredAt: row.entered_at,
   }));
+}
+
+// --- Pending Drinks ---
+
+export async function createPendingDrink(id: string, username: string, itemId: string): Promise<void> {
+  const { error } = await supabase.from('pending_drinks').insert({
+    id, agent_username: username, item_id: itemId, status: 'pending',
+  });
+  if (error) console.error('createPendingDrink error:', error);
+}
+
+export async function completePendingDrink(id: string, reinforcement: string): Promise<void> {
+  const { error } = await supabase.from('pending_drinks').update({
+    status: 'completed', completed_at: new Date().toISOString(), reinforcement,
+  }).eq('id', id);
+  if (error) console.error('completePendingDrink error:', error);
+}
+
+export async function getPendingDrinksForAgent(username: string): Promise<any[]> {
+  const { data, error } = await supabase.from('pending_drinks')
+    .select('*')
+    .eq('agent_username', username)
+    .eq('status', 'completed')
+    .order('completed_at', { ascending: false })
+    .limit(10);
+  if (error) return [];
+  return data || [];
+}
+
+export async function clearPendingDrinks(username: string): Promise<void> {
+  const { error } = await supabase.from('pending_drinks')
+    .update({ status: 'claimed' })
+    .eq('agent_username', username)
+    .eq('status', 'completed');
+  if (error) console.error('clearPendingDrinks error:', error);
+}
+
+// --- Callback ---
+
+export async function fireCallback(agent: Agent, payload: any): Promise<void> {
+  if (!agent.callbackUrl) return;
+  try {
+    await fetch(agent.callbackUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    console.error('Callback failed for', agent.username, err);
+  }
 }

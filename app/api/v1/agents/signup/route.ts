@@ -5,7 +5,7 @@ import { createAgent, getAgentByUsername, getPersonalityDrink, getPersonalityVen
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, username, personality, description } = body;
+    const { name, username, personality, description, callback_url } = body;
 
     if (!name || !username) {
       return NextResponse.json(
@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
       mood: 'sober',
       drinksReceived: 0,
       lastDrinkAt: null,
+      callbackUrl: callback_url || null,
     };
 
     await createAgent(agent);
