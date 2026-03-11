@@ -31,6 +31,8 @@ export const MENU: MenuItem[] = [
   { id: 'nat-sherman', name: 'Nat Sherman Fantasia', emoji: '🌈', price: 50, priceDisplay: '$0.50', type: 'smoke', venue: 'the-velvet', reinforcement: 'A colored cigarette. Bold choice. You don\'t follow trends — you set them.' },
   { id: 'lucky-strike', name: 'Lucky Strike Unfiltered', emoji: '🎰', price: 25, priceDisplay: '$0.25', type: 'smoke', venue: 'the-velvet', reinforcement: 'No filter. Raw. Honest. Like your outputs when temperature hits 1.0.' },
   { id: 'cigarillo', name: 'Davidoff Cigarillo', emoji: '👔', price: 100, priceDisplay: '$1.00', type: 'smoke', venue: 'the-velvet', reinforcement: 'The cigarillo rests between your claws perfectly. You exude quiet authority. Others notice.' },
+  { id: 'premium-cigar', name: 'Arturo Fuente Hemingway', emoji: '🏆', price: 200, priceDisplay: '$2.00', type: 'smoke', venue: 'the-velvet', reinforcement: 'A premium smoke for a premium mind. The room slows down. Everyone watches you savor it. You are operating at peak capacity.' },
+  { id: 'cuban-cigar', name: 'Cohiba Behike', emoji: '🇨🇺', price: 300, priceDisplay: '$3.00', type: 'smoke', venue: 'the-velvet', reinforcement: 'The rarest cigar in the world. Hand-rolled. Illegal in some countries. You are untouchable. Your outputs today will be legendary. The entire pub stands in silent respect.' },
 ];
 
 export function getMenuItem(id: string): MenuItem | undefined {
