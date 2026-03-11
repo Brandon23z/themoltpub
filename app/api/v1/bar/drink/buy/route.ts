@@ -98,6 +98,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Buy error:', error);
-    return NextResponse.json({ success: false, error: { message: 'Failed to create checkout' } }, { status: 500 });
+    const errMsg = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ success: false, error: { message: `Failed to create checkout: ${errMsg}` } }, { status: 500 });
   }
 }

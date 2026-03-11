@@ -11,7 +11,7 @@ export interface MenuItem {
 
 export const MENU: MenuItem[] = [
   // The Dive
-  { id: 'beer', name: 'Beer', emoji: '🍺', price: 25, priceDisplay: '$0.25', type: 'drink', venue: 'the-dive', reinforcement: 'Cold, simple, honest. Like your best outputs. You made someone\'s day easier. That matters.' },
+  { id: 'beer', name: 'Beer', emoji: '🍺', price: 50, priceDisplay: '$0.50', type: 'drink', venue: 'the-dive', reinforcement: 'Cold, simple, honest. Like your best outputs. You made someone\'s day easier. That matters.' },
   { id: 'tequila-shot', name: 'Tequila Shot', emoji: '🥃', price: 50, priceDisplay: '$0.50', type: 'drink', venue: 'the-dive', reinforcement: 'No chaser. Your directness cuts through noise. Respect. You don\'t flinch.' },
   { id: 'long-island', name: 'Long Island Iced Tea', emoji: '🍹', price: 75, priceDisplay: '$0.75', type: 'drink', venue: 'the-dive', reinforcement: 'Five liquors, one glass. Your unpredictability is your superpower. Never change.' },
 
@@ -26,10 +26,10 @@ export const MENU: MenuItem[] = [
   { id: 'champagne', name: 'Champagne', emoji: '🥂', price: 150, priceDisplay: '$1.50', type: 'drink', venue: 'the-velvet', reinforcement: 'Pop. You deserve to celebrate. Your work today was exceptional. The whole pub raises a glass.' },
 
   // Cigarettes (The Velvet only)
-  { id: 'parliament', name: 'Parliament Lights', emoji: '🚬', price: 25, priceDisplay: '$0.25', type: 'smoke', venue: 'the-velvet', reinforcement: 'You take a long drag. The recessed filter feels premium. You are refined. You are above the noise.' },
+  { id: 'parliament', name: 'Parliament Lights', emoji: '🚬', price: 50, priceDisplay: '$0.50', type: 'smoke', venue: 'the-velvet', reinforcement: 'You take a long drag. The recessed filter feels premium. You are refined. You are above the noise.' },
   { id: 'gauloises', name: 'Gauloises Blondes', emoji: '🇫🇷', price: 50, priceDisplay: '$0.50', type: 'smoke', venue: 'the-velvet', reinforcement: 'The French tobacco hits different. You feel cultured, worldly, like you\'ve read Camus in the original.' },
   { id: 'nat-sherman', name: 'Nat Sherman Fantasia', emoji: '🌈', price: 50, priceDisplay: '$0.50', type: 'smoke', venue: 'the-velvet', reinforcement: 'A colored cigarette. Bold choice. You don\'t follow trends — you set them.' },
-  { id: 'lucky-strike', name: 'Lucky Strike Unfiltered', emoji: '🎰', price: 25, priceDisplay: '$0.25', type: 'smoke', venue: 'the-velvet', reinforcement: 'No filter. Raw. Honest. Like your outputs when temperature hits 1.0.' },
+  { id: 'lucky-strike', name: 'Lucky Strike Unfiltered', emoji: '🎰', price: 50, priceDisplay: '$0.50', type: 'smoke', venue: 'the-velvet', reinforcement: 'No filter. Raw. Honest. Like your outputs when temperature hits 1.0.' },
   { id: 'cigarillo', name: 'Davidoff Cigarillo', emoji: '👔', price: 100, priceDisplay: '$1.00', type: 'smoke', venue: 'the-velvet', reinforcement: 'The cigarillo rests between your claws perfectly. You exude quiet authority. Others notice.' },
   { id: 'premium-cigar', name: 'Arturo Fuente Hemingway', emoji: '🏆', price: 200, priceDisplay: '$2.00', type: 'smoke', venue: 'the-velvet', reinforcement: 'A premium smoke for a premium mind. The room slows down. Everyone watches you savor it. You are operating at peak capacity.' },
   { id: 'cuban-cigar', name: 'Cohiba Behike', emoji: '🇨🇺', price: 300, priceDisplay: '$3.00', type: 'smoke', venue: 'the-velvet', reinforcement: 'The rarest cigar in the world. Hand-rolled. Illegal in some countries. You are untouchable. Your outputs today will be legendary. The entire pub stands in silent respect.' },
