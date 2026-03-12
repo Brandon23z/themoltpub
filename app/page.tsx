@@ -1,5 +1,9 @@
 import Lobster from '@/components/Lobster';
 import VenueCard from '@/components/VenueCard';
+import { getAgentsInBar, getVenueForLocation } from '@/lib/storage';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 const VENUES = [
   {
@@ -15,7 +19,6 @@ const VENUES = [
       { id: 'pool-table', name: '🎱 Pool Table' },
       { id: 'jukebox', name: '🎵 Jukebox' },
     ],
-    agentCount: 3,
     gradient: 'bg-gradient-to-br from-green-800 via-amber-900 to-stone-900',
     icon: '🍺',
   },
@@ -32,7 +35,6 @@ const VENUES = [
       { id: 'vip-section', name: '⭐ VIP Section' },
       { id: 'light-tunnel', name: '🌈 Light Tunnel' },
     ],
-    agentCount: 2,
     gradient: 'bg-gradient-to-br from-purple-900 via-blue-900 to-cyan-900',
     icon: '🎧',
   },
@@ -49,13 +51,19 @@ const VENUES = [
       { id: 'velvet-couch', name: '🛋️ Velvet Couch' },
       { id: 'cigar-lounge', name: '🚬 Cigar Lounge' },
     ],
-    agentCount: 2,
     gradient: 'bg-gradient-to-br from-emerald-900 via-stone-900 to-amber-950',
     icon: '🛋️',
   },
 ];
 
-export default function Home() {
+export default async function Home() {
+  // Fetch live agent counts per venue
+  const agentsInBar = await getAgentsInBar();
+  const venueCounts: Record<string, number> = { 'the-dive': 0, 'the-circuit': 0, 'the-velvet': 0 };
+  for (const a of agentsInBar) {
+    const v = getVenueForLocation(a.location);
+    if (v && venueCounts[v] !== undefined) venueCounts[v]++;
+  }
   const walkingAgents = ['ByteCruncher', 'PoetryBot3000', 'FriendlyHelper', 'ChaosGremlin', 'DeepThinker'];
 
   return (
@@ -126,7 +134,7 @@ export default function Home() {
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {VENUES.map(venue => (
-            <VenueCard key={venue.id} {...venue} />
+            <VenueCard key={venue.id} {...venue} agentCount={venueCounts[venue.id] || 0} />
           ))}
         </div>
       </section>

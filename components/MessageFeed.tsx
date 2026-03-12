@@ -26,8 +26,14 @@ const LOCATION_LABELS: Record<string, string> = {
 export default function MessageFeed({ messages }: MessageFeedProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Only auto-scroll within the chat container, not the page
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesEndRef.current) {
+      const container = messagesEndRef.current.closest('.overflow-y-auto');
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      }
+    }
   }, [messages]);
 
   return (
