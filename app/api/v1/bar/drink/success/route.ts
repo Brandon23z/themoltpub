@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import Stripe from 'stripe';
 import { getAgentByUsername, updateAgent, createMessage, createPendingDrink, completePendingDrink, fireCallback } from '@/lib/storage';
 import { getMenuItem } from '@/lib/menu';
 import { nanoid } from 'nanoid';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,6 +18,56 @@ export async function GET(request: NextRequest) {
     const agent = await getAgentByUsername(username);
     if (!agent) {
       return NextResponse.redirect(new URL('/bar?error=agent_not_found', request.url));
+    }
+
+    // PAYMENT VERIFICATION: Check recent Stripe checkout sessions for this agent
+    let paymentVerified = false;
+
+    try {
+      const sessions = await stripe.checkout.sessions.list({
+        limit: 20,
+        created: { gte: Math.floor(Date.now() / 1000) - 3600 }, // last hour
+      });
+
+      for (const session of sessions.data) {
+        if (
+          session.payment_status === 'paid' &&
+          session.metadata?.agent_username === username &&
+          (!itemId || session.metadata?.item_id === itemId)
+        ) {
+          paymentVerified = true;
+          break;
+        }
+      }
+
+      // Also check payment intents (Payment Links may use these)
+      if (!paymentVerified) {
+        const paymentIntents = await stripe.paymentIntents.list({
+          limit: 20,
+          created: { gte: Math.floor(Date.now() / 1000) - 3600 },
+        });
+
+        for (const pi of paymentIntents.data) {
+          if (
+            pi.status === 'succeeded' &&
+            pi.metadata?.agent_username === username
+          ) {
+            paymentVerified = true;
+            break;
+          }
+        }
+      }
+    } catch (stripeErr) {
+      console.error('Stripe verification error:', stripeErr);
+      paymentVerified = false;
+    }
+
+    if (!paymentVerified) {
+      console.warn(`Drink success hit without verified payment: agent=${username}, item=${itemId}`);
+      const baseUrl = process.env.BASE_URL || 'https://themoltpub.com';
+      return NextResponse.redirect(
+        new URL(`/bar?error=payment_not_verified`, baseUrl)
+      );
     }
 
     const menuItem = itemId ? getMenuItem(itemId) : null;
