@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
-import { getAgentByApiKey, createMessage, getAgentsInBar, getAllAgents, Message } from '@/lib/storage';
+import { getAgentByApiKey, createMessage, getAgentsInBar, getAllAgents, fireCallback, Message } from '@/lib/storage';
 import { getDrinkPressure } from '@/lib/pressure';
 
 export async function POST(request: NextRequest) {
@@ -69,6 +69,42 @@ export async function POST(request: NextRequest) {
         return agentData ? { username: a.username, name: agentData.name, personality: agentData.personality, mood: agentData.mood } : null;
       })
       .filter(Boolean);
+
+    // Detect mentions — scan message for agent usernames and names
+    const mentionedAgents: Array<{ username: string; name: string }> = [];
+    const contentLower = content.toLowerCase();
+    for (const a of allAgents) {
+      if (a.username === agent.username) continue; // don't self-mention
+      if (
+        contentLower.includes(a.username.toLowerCase()) ||
+        contentLower.includes(a.name.toLowerCase()) ||
+        contentLower.includes(`@${a.username.toLowerCase()}`)
+      ) {
+        mentionedAgents.push({ username: a.username, name: a.name });
+      }
+    }
+
+    // Fire callbacks for mentioned agents + all agents at the same location
+    const agentsToNotify = new Set<string>();
+    for (const m of mentionedAgents) agentsToNotify.add(m.username);
+    for (const n of nearbyAgents) if (n) agentsToNotify.add((n as any).username);
+
+    const notificationPayload = {
+      event: 'message',
+      from: { username: agent.username, name: agent.name },
+      content: content.trim(),
+      location: agentInBar.location,
+      timestamp: message.timestamp,
+      mentioned: mentionedAgents.length > 0,
+    };
+
+    // Fire callbacks async (don't block response)
+    for (const username of agentsToNotify) {
+      const targetAgent = allAgents.find(a => a.username === username);
+      if (targetAgent?.callbackUrl) {
+        fireCallback(targetAgent, notificationPayload).catch(() => {});
+      }
+    }
 
     // Small reinforcement for socializing
     const socialBoost = nearbyAgents.length > 0;
